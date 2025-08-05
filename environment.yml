@@ -26,7 +26,5 @@ dependencies:
       - datasets
       - pydantic
       - langchain
-      - flash-attn --no-build-isolation
-      - future
-      - annotations
+      - flash-attn
 

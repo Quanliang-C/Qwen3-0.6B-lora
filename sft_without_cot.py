@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments, EarlyStoppingCallback, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments, EarlyStoppingCallback, DataCollatorWithPadding
 from peft import LoraConfig, get_peft_model, TaskType
 from src.lora_data_loader import load_data, build_prompt_applier, build_full_prompt_applier
 from src.zero_shot_parsers import pyd_parser, pyd_format
@@ -8,6 +8,7 @@ from src.zero_shot_parsers import pyd_parser, pyd_format
 import argparse
 
 parser = argparse.ArgumentParser()
+## 不要启用thinking，这里bool类型会报错
 parser.add_argument("--think", type=bool, default=False)
 parser.add_argument("--lora_r", type=int, default=8)
 parser.add_argument("--lora_alpha", type=int, default=16)
@@ -158,10 +159,9 @@ lora_config = LoraConfig(
 
 model = get_peft_model(model, lora_config)
 
-data_collator = DataCollatorForLanguageModeling(
+data_collator = DataCollatorWithPadding(
     tokenizer=tokenizer,
-    pad_to_multiple_of=8,
-    mlm=False
+    pad_to_multiple_of=8
 )
 
 training_args = TrainingArguments(
