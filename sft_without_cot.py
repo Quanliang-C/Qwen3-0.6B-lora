@@ -204,46 +204,59 @@ if __name__ == "__main__":
         callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
     )
 
+    if args.debug:
+        print("🔍 开始调试...")
+
+        # —— Begin Debug Block ——#
+        train_loader = trainer.get_train_dataloader()
+        batch = next(iter(train_loader))
+
+        input_ids   = batch["input_ids"]      # shape: [B, L]
+        attention   = batch["attention_mask"] # shape: [B, L]
+        labels      = batch["labels"]         # shape: [B, L]
+
+        for i in range(input_ids.size(0)):
+            ids   = input_ids[i].tolist()
+            lbls  = labels[i].tolist()
+            attn  = attention[i].tolist()
+
+            # 解码整条输入（包含 prompt + answer + pad）
+            txt_input = tokenizer.decode(ids, skip_special_tokens=False)
+
+            # 找到 label != -100 的索引范围
+            valid_idxs = [j for j, v in enumerate(lbls) if v != -100]
+            if valid_idxs:
+                start, end = valid_idxs[0], valid_idxs[-1]
+                # 解码答案部分
+                answer_tokens = lbls[start : end + 1]
+                txt_answer = tokenizer.decode(answer_tokens, skip_special_tokens=False)
+            else:
+                start = end = None
+                txt_answer = ""
+
+            print(f"\n—— 样本 {i} ——")
+            print("INPUT_DECOD E:", txt_input.replace("\n", "\\n"))
+            print("LABEL_TO_PREDICT:", txt_answer.replace("\n", "\\n"))
+            print(f"ATTENTION_MASK: {attn}")
+            print(f"LABELS_RAW     : {lbls}")
+
+            # 自动断言：prompt 段（0..start-1）应全为 -100
+            if start is not None:
+                assert all(v == -100 for v in lbls[:start]), \
+                    f"Prompt 区段有非 -100 值: {lbls[:start]}"
+                # 答案段（start..end）应全不为 -100
+                assert all(v != -100 for v in lbls[start : end+1]), \
+                    f"答案区段有 -100: {lbls[start : end+1]}"
+                # pad 段（end+1..L）应全为 -100
+                assert all(v == -100 for v in lbls[end+1 :]), \
+                    f"Pad 区段有非 -100 值: {lbls[end+1 :]}"
+
+        print("\n✅ Debug check passed: prompt/answer/pad 区段都正确。")
+
     # 开始训练（每个epoch会自动计算metrics）
     print("🚀 开始训练...")
     trainer.train()
 
-    if args.debug:
-
-        # 取一个小 batch（batch_size = training_args.per_device_train_batch_size）
-        train_loader = trainer.get_train_dataloader()
-        batch = next(iter(train_loader))
-
-        # 解码 input_ids、labels
-        input_ids = batch["input_ids"]          # shape: [B, L]
-        labels    = batch["labels"]             # shape: [B, L]
-        attention = batch["attention_mask"]
-
-        for i in range(len(input_ids)):
-            ids = input_ids[i].tolist()
-            lbl = labels[i].tolist()
-            att = attention[i].tolist()
-
-            # 1) 可视化原始 token 序列
-            text_input = tokenizer.decode(ids, skip_special_tokens=False)
-            # 2) 只把 label >=0（即参与 loss 的部分）拼成一段
-            label_tokens = [tok for tok in lbl if tok != -100]
-            text_label = tokenizer.decode(label_tokens, skip_special_tokens=False)
-
-            print(f"\n—— 样本 {i} ——")
-            print("INPUT_IDS  :", ids)
-            print("ATTENTION  :", att)
-            print("LABELS     :", lbl)
-            print("—— 解码后文本 ——")
-            print("INPUT 文本:", text_input.replace("\n", "\\n"))
-            print("要预测 LABEL:", text_label.replace("\n", "\\n"))
-            print("—— 检查 ——")
-            # 校验：labels 里只有答案部分，没有 prompt
-            prompt_len = len(tokenizer.decode(short_prompt_applier.tokenizer(ids), skip_special_tokens=False))
-            # 这里只是示例，你也可以手动数 prompt-token 长度来对比
-            # assert 提示
-            num_label = sum(1 for x in lbl if x != -100)
-            print(f"  有效 label 数量: {num_label}，应该等于答案 token 数量\n")
 
     # 保存模型
     model.save_pretrained("./sft_without_cot_final")
