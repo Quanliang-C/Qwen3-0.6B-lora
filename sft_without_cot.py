@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments, EarlyStoppingCallback, DataCollatorWithPadding
+from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments, EarlyStoppingCallback, DataCollatorForLanguageModeling
 from peft import LoraConfig, get_peft_model, TaskType
 from src.lora_data_loader import load_data, build_prompt_applier, build_full_prompt_applier
 from src.zero_shot_parsers import pyd_parser, pyd_format
@@ -159,9 +159,11 @@ lora_config = LoraConfig(
 
 model = get_peft_model(model, lora_config)
 
-data_collator = DataCollatorWithPadding(
+data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
-    pad_to_multiple_of=8
+    pad_to_multiple_of=8,
+    mlm=False,
+    label_pad_token_id=-100
 )
 
 training_args = TrainingArguments(
@@ -184,7 +186,7 @@ training_args = TrainingArguments(
     load_best_model_at_end=True,
     bf16=use_bf16,
     fp16=not use_bf16 and torch.cuda.is_available(),
-    dataloader_num_workers=8
+    dataloader_num_workers=2
 )
 
 
