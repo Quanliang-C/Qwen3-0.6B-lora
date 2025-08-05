@@ -1,35 +1,32 @@
 name: qwen3
-
 channels:
-  - pytorch
-  - nvidia
-  - conda-forge
-  - defaults
+  - pytorch          # GPU 版 PyTorch 所在仓库
+  - nvidia           # nvidia/* 依赖（cuBLAS 等）
+  - conda-forge      # 其他常用包
+  - defaults         # 建议保留，补充缺失依赖
 
 dependencies:
-  # --- Conda 核心依赖 ---
-  # 指定 Python 版本和核心计算库
+  # ---- Conda 核心 ----
   - python=3.10
-  - pytorch::pytorch
+  - pytorch::pytorch            # CPU/GPU 通用核心
   - pytorch::torchvision
   - pytorch::torchaudio
-  - nvidia::pytorch-cuda=12.1 # [1]
+  - pytorch::pytorch-cuda=12.1  # 关键：GPU 运行时元包
   - pandas
   - scikit-learn
   - pyyaml
   - tqdm
-  
-  # --- Pip 依赖 ---
-  # 用于安装 PyPI 中的其他库
+
+  # ---- pip 依赖 ----
   - pip
   - pip:
-    - transformers>=4.51.0
-    - peft
-    - accelerate
-    - datasets
-    - pydantic
-    - langchain
-    - flash-attn --no-build-isolation
-    - future
-    - annotations
+      - transformers>=4.51.0
+      - peft
+      - accelerate
+      - datasets
+      - pydantic
+      - langchain
+      - flash-attn --no-build-isolation
+      - future
+      - annotations
 
